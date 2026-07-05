@@ -131,9 +131,12 @@ $$\mathbf{S}_{k} = \mathbf{S}_{k-1} + \Phi_{k} \odot \left( \mathbf{W} \cdot \ma
 
 ### 2. The Zero-Squelch Operator
 
-- If the micro-kernel exhausts all $N_{max}$ iterations and any element within the terminal active flag matrix remains active ($\Phi_{N} = 1.0$), it indicates that the input batch contains a numerical singularity (infinite vibration) that would otherwise collapse the downstream AdamW optimizer via `NaN` propagation.
+- If the terminal active flag remains unresolved, the kernel applies the multi-dimensional algebraic **Zero-Squelch Operator** via dimensional reduction and automatic algebraic broadcasting ($\odot$), avoiding explicit control loops.
 
-- 만약 마이크로 커널이 최대 루프($N_{max}$)를 모두 소모했음에도 최종 활성 플래그 행렬(Active Flag Matrix) 내에 단 하나의 원소라도 미수렴 상태($1.0$)로 잔존해 있다면, 이는 입력 배치 내에 후속 AdamW 옵티마이저를 `NaN` 폭발로 붕괴시킬 수 있는 수치적 싱큘래리티(무한 진동 및 발산 변이)가 포함되어 있음을 의미합니다.
+- 마이크로 커널의 최대 루프 소모 후 최종 활성 플래그가 잔존할 경우, 제어 루프 없이 차원 축소 연산 및 자동 대수적 브로드캐스팅 아다마르 곱($\odot$)을 결합한 **원천 증발 연산자(Zero-Squelch Operator)**를 실행합니다
+
+$$\mathbf{I}_{factor} = 1.0 - \max_{\text{axis}=-1}(\mathbf{\Phi}_{N})$$
+$$\mathbf{X}_{sanitized} = \mathbf{X}_{batch} \odot \mathbf{I}_{factor}$$
 
 ---
 

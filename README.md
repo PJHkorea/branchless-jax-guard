@@ -119,13 +119,13 @@ $$\sigma_{k} = \mathbb{I}(\Delta_{k} > \epsilon) \cdot 1.0f \in \{0.0, 1.0\}$$
 
 ---
 
-- The cumulative survival flag ($\Phi_{k}$) and the state transition vector ($\mathbf{S}_{k}$) inherit preceding historical states deterministically and execute updates completely free from branch mispredictions.
+- The cumulative survival flag ($\Phi_{k}$) and state transition vector ($\mathbf{S}_{k}$) update via element-wise Hadamard products ($\odot$), ensuring branch-free, parallelized bit-masking.
 
-- 누적 생존 플래그($\Phi_{k}$)와 상태 전환 벡터($\mathbf{S}_{k}$)는 분기 예측 실패 없이 이전 히스토리를 결정론적으로 상속받아 업데이트됩니다.
+- 누적 생존 플래그($\Phi_{k}$)와 상태 전환 벡터($\mathbf{S}_{k}$)는 벡터 유닛 수준의 원소별 아다마르 곱($\odot$)을 통해 이전 히스토리를 결정론적으로 상속받아, 분기 예측 실패 없는 병렬 비트 마스크 업데이트를 실행합니다.
 
-$$\Phi_{k} = \Phi_{k-1} \times \sigma_{k}$$
+$$\Phi_{k} = \Phi_{k-1} \odot \sigma_{k}$$
+$$\mathbf{S}_{k} = \mathbf{S}_{k-1} + \Phi_{k} \odot \left( \mathbf{W} \cdot \mathbf{S}_{k-1} + \text{LeakySlope}(\Delta_{k}) \right)$$
 
-$$\mathbf{S}_{k} = \mathbf{S}_{k-1} + \Phi_{k} \times \left( \mathbf{W} \cdot \mathbf{S}_{k-1} + \text{LeakySlope}(\Delta_{k}) \right)$$
 
 ---
 

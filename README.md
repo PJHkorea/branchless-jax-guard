@@ -192,7 +192,23 @@ print(f"Pipeline Sync Status: {artifacts_metrics['integrity_sync_status']}")
 | `data_corruption_rate` | `jax.Array` | Scalar (`float32`) | Autograd-isolated statistical metric tracking the fraction of failed convergences. |
 | `integrity_sync_status`| `jax.Array` | Scalar (`float32`) | Binary status (`1.0` if clean, `0.0` if anomalies were neutralized). |
 
+---
 
+## 📜 License
+
+```text
+Copyright (c) 2026 PJHkorea. All rights reserved.
+Licensed under the Apache License, Version 2.0 (the "License");
+```
+
+- **[EN]** This repository contains open-source code distributed under the **Apache License 2.0**. The full license text can be found in the `LICENSE` file.
+- **[KR]** 본 저장소는 **Apache License 2.0으로 배포하는 소스코드**입니다. 전문은 루트 디렉토리의 `LICENSE` 파일에서 확인하실 수 있습니다.
+
+---
+
+> ⚠️ **[EN] Disclaimer**: All code within this repository is provided "AS IS", without warranty of any kind, express or implied.
+>
+> ⚠️ **[KR] 면책 조항**: 본 저장소의 모든 소스코드는 "있는 그대로(AS IS)" 제공되며, 명시적 또는 묵시적인 어떠한 보증도 제공하지 않습니다.
 
 
 

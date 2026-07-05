@@ -1,4 +1,4 @@
-# branchless-jax-guard (Apache 2.0)
+# branchless-jax-guard
 
 High-performance, compiler-native data pipeline verification gate engineered in JAX/XLA. Eradicates dynamic loop overheads and runtime `ConcretizationTypeError` anomalies via compile-time bounded loop unrolling and strict branchless algebraic masking.
 

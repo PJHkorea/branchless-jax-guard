@@ -98,6 +98,8 @@ The core philosophy of `branchless-jax-guard` is to avoid runtime CPU hardware i
 ### [KR] 수치해석적 원천 증발 메커니즘 해설
 `branchless-jax-guard`의 핵심 철학은 XLA 컴파일 파이프라인을 파편화하는 런타임 CPU 하드웨어 인터럽트나 파이썬 레벨의 조건부 분기문(`if`/`break`)을 철저히 배제하는 것입니다. 대신, 입력 데이터의 수치적 이상 현상 격리 및 무력화 처리를 수학적인 매니폴드 압착(Analytical Manifold Squeezing) 기법을 통해 가속기 내부에서 완벽하게 처리합니다.
 
+---
+
 ### 1. Bounded Trace and Status Propagation
 
 
@@ -107,13 +109,15 @@ The core philosophy of `branchless-jax-guard` is to avoid runtime CPU hardware i
 
 $$\Delta_{k} = | \mathbf{x}_{k} - \mathbf{x}_{k-1} |$$
 
+---
 
-- At this stage, the boolean convergence evaluation is transformed into a continuous floating-point gating mask ($\sigma_{k} \in \{0.0, 1.0\}$) entirely within the accelerator hardware.
+- The boolean convergence evaluation is transformed into a continuous floating-point gating multiplier inside the accelerator's ALU via direct algebraic product with a static float32 literal ($1.0f$), preventing branch mispredictions and implicit type promotion stalls.
 
-- 이때 불리언(Boolean) 수렴 테스트는 가속기 내부에서 연속적인 부동소수점 게이팅 마스크($\sigma_{k} \in \{0.0, 1.0\}$)로 변환됩니다.
+- 불리언(Boolean) 수렴 테스트는 가속기 ALU 내부에서 정적 float32 리터럴 상수($1.0f$)와의 직접적인 대수적 곱연산을 통해 연속적인 부동소수점 게이팅 멀티플라이어로 변환됩니다. 이를 통해 분기 예측 실패와 묵시적 형변환 지연(Stall)을 원천 차단합니다.
 
-$$\sigma_{k} = \mathbb{I}(\Delta_{k} > \epsilon) \in \{0.0, 1.0\}$$
+$$\sigma_{k} = \mathbb{I}(\Delta_{k} > \epsilon) \cdot 1.0f \in \{0.0, 1.0\}$$
 
+---
 
 - The cumulative survival flag ($\Phi_{k}$) and the state transition vector ($\mathbf{S}_{k}$) inherit preceding historical states deterministically and execute updates completely free from branch mispredictions.
 
@@ -123,33 +127,41 @@ $$\Phi_{k} = \Phi_{k-1} \times \sigma_{k}$$
 
 $$\mathbf{S}_{k} = \mathbf{S}_{k-1} + \Phi_{k} \times \left( \mathbf{W} \cdot \mathbf{S}_{k-1} + \text{LeakySlope}(\Delta_{k}) \right)$$
 
-
+---
 
 ### 2. The Zero-Squelch Operator
 
 - If the micro-kernel exhausts all $N_{max}$ iterations and any element within the terminal active flag matrix remains active ($\Phi_{N} = 1.0$), it indicates that the input batch contains a numerical singularity (infinite vibration) that would otherwise collapse the downstream AdamW optimizer via `NaN` propagation.
+
 - 만약 마이크로 커널이 최대 루프($N_{max}$)를 모두 소모했음에도 최종 활성 플래그 행렬(Active Flag Matrix) 내에 단 하나의 원소라도 미수렴 상태($1.0$)로 잔존해 있다면, 이는 입력 배치 내에 후속 AdamW 옵티마이저를 `NaN` 폭발로 붕괴시킬 수 있는 수치적 싱큘래리티(무한 진동 및 발산 변이)가 포함되어 있음을 의미합니다.
 
-
+---
 
 - Instead of throwing a runtime exception and halting the entire pipeline, the kernel applies the algebraic **Zero-Squelch Operator** immediately outside the sequential loop context:
+
 - 가속기 파이프라인은 런타임 예외(Exception)를 던져 대규모 학습 시스템 전체를 중단시키는 대신, 순차 루프 파이프라인 컨텍스트 외부에서 대수적인 **원천 증발 연산자(Zero-Squelch Operator)**를 즉각 실행합니다:
 
 $$\mathbf{I}_{factor} = 1.0 - \text{Reduction}(\mathbf{\Phi}_{N})$$
 
 $$\mathbf{X}_{sanitized} = \mathbf{X}_{batch} \times \mathbf{I}_{factor}$$
 
-- **[EN]** In the production kernel, the integrity factor is explicitly downcast to match the original precision of the input matrix, fully eliminating implicit runtime casting overheads.
-- **[KR]** 프로덕션 커널 내에서 무결성 인자는 원본 입력 행렬의 데이터 타입 정밀도로 명시적 다운캐스팅되어, 하드웨어 단의 묵시적 형변환 오버헤드를 원천 차단합니다.
+---
+
+- In the production kernel, the integrity factor is explicitly downcast to match the original precision of the input matrix, fully eliminating implicit runtime casting overheads.
+
+- 프로덕션 커널 내에서 무결성 인자는 원본 입력 행렬의 데이터 타입 정밀도로 명시적 다운캐스팅되어, 하드웨어 단의 묵시적 형변환 오버헤드를 원천 차단합니다.
 
 $$\mathbf{I}_{\text{factor}} \in \mathbb{R}^{B \times 1} \quad \text{downcast to} \quad \text{dtype}(\mathbf{X}_{\text{batch}})$$
 
-
+---
 
 - **Normal Data Ingress ($\Phi_{N} = 0.0$):** The integrity factor maps to $1.0$, guaranteeing undamaged, bit-exact forward propagation.
+
 - **정상 데이터 인입 ($\Phi_{N} = 0.0$):** 무결성 인자가 $1.0$으로 사상되어, 원본 데이터의 훼손 없는 비트 단위 정밀도(Bit-exact) 그대로 순전파(Forward propagation)를 보장합니다.
 
 $$\mathbf{I}_{factor} = 1.0 \implies \mathbf{X}_{sanitized} = \mathbf{X}_{batch} \times 1.0$$
+
+---
 
 - **Corrupted Anomaly Ingress ($\Phi_{N} = 1.0$):** The integrity factor drops to $0.0$, forcing an immediate geometric collapse into a precise null matrix and neutralizing the anomaly prior to model ingestion.
 - **불량 데이터 인입 ($\Phi_{N} = 1.0$):** 무결성 인자가 정확히 $0.0$으로 강제 수축됩니다. 입력 데이터 전체를 물리적인 제로(0.0) 상태로 기하학적 소멸(Geometric Collapse) 시켜 신경망에 인입되기 전 아노말리를 원천 무력화합니다.

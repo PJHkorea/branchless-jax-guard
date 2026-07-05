@@ -36,8 +36,9 @@ def execute_pretrain_integrity_scan(observer_batch: jax.Array) -> Tuple[jax.Arra
     original_shape = observer_batch.shape
     flattened_batch = jnp.reshape(observer_batch, (-1, original_shape[-1]))
 
+
     
-       # ====================================================================
+    # ====================================================================
     # [PURE COMPILER-CAPTURED CLOSURE KERNEL]
     # [KR] 외부 flattened_batch를 정적 레지스터 상수로 완벽하게 바인딩하여 SRAM 오버플로우 차단
     # [EN] Bind external flattened_batch as a static register constant to prevent SRAM spill-over
@@ -47,9 +48,9 @@ def execute_pretrain_integrity_scan(observer_batch: jax.Array) -> Tuple[jax.Arra
         # [EN] Unpack step loop carry (current computational state vector, active flag matrix)
         state_vector, active_flag = carry
         
-        # 1. [KR] 100% Element-wise 절대 오차 변화량 측정으로 가속기 벡터 유닛(ALU) 가동률 극대화
-        # 1. [EN] Maximize SIMD/Vector unit utilization via 100% element-wise discrepancy measurement
-        delta_discrepancy = jnp.abs(state_vector - flattened_batch) 
+        # 1. [KR] 100% Element-wise 절대 오차 변화량 측정 및 float32 강제 상향을 통한 정밀도 방어
+        # 1. [EN] Compute absolute discrepancy and cast to float32 to protect numerical precision from underflow
+        delta_discrepancy = jnp.abs(state_vector - flattened_batch).astype(jnp.float32)
         
         # 2. [KR] 부동소수점 언더플로우를 방어하며 수렴 여부 판정 (조건문 if 없이 불리언-실수 정적 사상)
         # 2. [EN] Evaluate convergence without 'if' branches via dynamic boolean-to-float masking
@@ -71,13 +72,16 @@ def execute_pretrain_integrity_scan(observer_batch: jax.Array) -> Tuple[jax.Arra
         return (next_state_vector, next_active_flag), None
 
 
+
     # ====================================================================
     # [LIGHTWEIGHT LOOP STREAMING PREPARATION]
     # [KR] 가속기 레지스터 영역 최적화를 위한 경량 가변 캐리 및 정적 인덱스 레일 빌드
     # [EN] Construct lightweight mutable carry and static index rails for optimal register allocation
     # ====================================================================
-    initial_state = jnp.zeros_like(flattened_batch)
-    initial_flag = jnp.ones_like(flattened_batch)   # [KR] 원소별 마스킹을 위해 배치와 1:1 사상되는 플래그 매트릭스 / [EN] 1:1 aligned flag matrix for element-wise masking
+    # [KR] 입력 정밀도(fp16/bf16)와 무관하게, 루프 상태 및 마스킹 연산 레일은 오직 무결점 f32로 강제 통일하여 언더플로우 방어
+    # [EN] Enforce float32 on the loop state and masking rails to prevent numerical underflow, independent of input precision
+    initial_state = jnp.zeros_like(flattened_batch, dtype=jnp.float32)
+    initial_flag = jnp.ones_like(flattened_batch, dtype=jnp.float32)   # [KR] 원소별 마스킹을 위해 배치와 1:1 사상되는 플래그 매트릭스 / [EN] 1:1 aligned flag matrix for element-wise masking
     scan_indices = jnp.arange(MAX_SCAN_BOUND)       # [KR] 물리적 텐서 복제를 배제하는 인라인 정적 상수 축 / [EN] Static constant axis to eliminate physical tensor replication memory overhead
     
     # ====================================================================
@@ -92,7 +96,7 @@ def execute_pretrain_integrity_scan(observer_batch: jax.Array) -> Tuple[jax.Arra
     )
 
     
-       # ====================================================================
+    # ====================================================================
     # [POST-LOOP REDUCTION SQUELCH]
     # [KR] 부하가 큰 jnp.max 연산은 순차 루프 파이프라인 밖에서 '단 한 번'만 수행하여 Warp Stall 방어
     # [EN] Defer high-overhead horizontal max reduction outside the sequential loop to prevent Warp Stalls
@@ -100,7 +104,10 @@ def execute_pretrain_integrity_scan(observer_batch: jax.Array) -> Tuple[jax.Arra
     # [KR] 특정 샘플(Row) 내 피처 중 단 하나라도 미수렴(1.0) 상태라면 해당 행 전체를 불량(Corrupted)으로 판정
     # [EN] If even a single feature within a row remains un-converged (1.0), flag the entire sample as corrupted
     is_corrupted = jnp.max(final_active_flag, axis=-1, keepdims=True)
-    integrity_factor = 1.0 - is_corrupted  # [KR] 정상 데이터는 1.0, 미수렴 불량 데이터는 정확히 0.0 / [EN] Normal data maps to 1.0, corrupted samples drop to exactly 0.0
+    
+    # [KR] 마스킹 인자를 원본 배치(flattened_batch)의 데이터 타입과 명시적으로 동기화하여 연산 효율 보장
+    # [EN] Downcast the integrity mask to match the original flattened_batch dtype, preventing unwanted float32 promotion
+    integrity_factor = (1.0 - is_corrupted).astype(flattened_batch.dtype)
     
     # ====================================================================
     # [ZERO-BRANCHING DATA SQUASH]
@@ -111,7 +118,7 @@ def execute_pretrain_integrity_scan(observer_batch: jax.Array) -> Tuple[jax.Arra
     sanitized_batch = jnp.reshape(sanitized_flattened, original_shape)
 
     
-       # ====================================================================
+    # ====================================================================
     # [AUTOGRAD-ISOLATED NON-BLOCKING METRICS]
     # [KR] 불량 데이터 감지 메트릭을 역전파 미분 사슬 그래프(Computation Graph)와 전산학적으로 절연
     # [EN] Insulate data corruption metrics from the autograd backward graph to prevent gradient pollution

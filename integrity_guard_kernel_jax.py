@@ -56,8 +56,8 @@ def execute_pretrain_integrity_scan(observer_batch: jax.Array) -> Tuple[jax.Arra
         # 2. [EN] Evaluate convergence without 'if' branches via dynamic boolean-to-float masking
         is_still_divergent = (delta_discrepancy > CONVERGENCE_FLOOR).astype(jnp.float32)
         
-        # 3. [KR] 조건문 없는 완벽한 게이팅 곱연산으로 이전 상태의 활성 유무 상속
-        # 3. [EN] Inherit operational activity state unconditionally using mathematical gating multipliers
+        # 3. [KR] 조건문 없는 완벽한 아다마르 곱(Hadamard Product) 연산으로 이전 상태의 활성 유무 상속
+        # 3. [EN] Inherit operational activity state unconditionally using element-wise Hadamard products
         next_active_flag = active_flag * is_still_divergent
         
         # 4. [KR] 발산 강도가 임계치를 초과할 때 미세 기울기를 결합하여 NaN 폭발 방어 (Leaky 완충)

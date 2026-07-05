@@ -140,13 +140,13 @@ $$\mathbf{X}_{sanitized} = \mathbf{X}_{batch} \odot \mathbf{I}_{factor}$$
 
 ---
 
-- Instead of throwing a runtime exception and halting the entire pipeline, the kernel applies the algebraic **Zero-Squelch Operator** immediately outside the sequential loop context:
+- Instead of throwing a runtime exception and halting the entire pipeline, the kernel applies the multi-dimensional algebraic **Zero-Squelch Operator** immediately outside the sequential loop context, avoiding explicit control loops.
 
-- 가속기 파이프라인은 런타임 예외(Exception)를 던져 대규모 학습 시스템 전체를 중단시키는 대신, 순차 루프 파이프라인 컨텍스트 외부에서 대수적인 **원천 증발 연산자(Zero-Squelch Operator)**를 즉각 실행합니다:
+- 가속기 파이프라인은 런타임 예외(Exception)를 던져 대규모 학습 시스템 전체를 중단시키는 대신, 제어 루프 없이 차원 축소 연산 및 브로드캐스팅을 활용한 **원천 증발 연산자(Zero-Squelch Operator)**를 순차 루프 파이프라인 컨텍스트 외부에서 즉각 실행합니다.
 
-$$\mathbf{I}_{factor} = 1.0 - \text{Reduction}(\mathbf{\Phi}_{N})$$
+$$\mathbf{I}_{\text{factor}} = 1.0 - \max_{\text{axis}=-1}(\mathbf{\Phi}_{N})$$
+$$\mathbf{X}_{\text{sanitized}} = \mathbf{X}_{\text{batch}} \odot \mathbf{I}_{\text{factor}}$$
 
-$$\mathbf{X}_{sanitized} = \mathbf{X}_{batch} \times \mathbf{I}_{factor}$$
 
 ---
 
@@ -158,18 +158,20 @@ $$\mathbf{I}_{\text{factor}} \in \mathbb{R}^{B \times 1} \quad \text{downcast to
 
 ---
 
-- **Normal Data Ingress ($\Phi_{N} = 0.0$):** The integrity factor maps to $1.0$, guaranteeing undamaged, bit-exact forward propagation.
+- **Normal Data Ingress ($\Phi_{N} = 0.0$):** The final integrity factor maps to $1.0$, guaranteeing undamaged, bit-exact forward propagation through the accelerator pipeline.
 
-- **정상 데이터 인입 ($\Phi_{N} = 0.0$):** 무결성 인자가 $1.0$으로 사상되어, 원본 데이터의 훼손 없는 비트 단위 정밀도(Bit-exact) 그대로 순전파(Forward propagation)를 보장합니다.
+- **정상 데이터 인입 ($\Phi_{N} = 0.0$):** 최종 무결성 인자가 $1.0$으로 사상되어, 원본 데이터의 훼손 없는 비트 단위 정밀도(Bit-exact) 그대로 순전파(Forward propagation) 구동을 보장합니다.
 
-$$\mathbf{I}_{factor} = 1.0 \implies \mathbf{X}_{sanitized} = \mathbf{X}_{batch} \times 1.0$$
+$$\mathbf{I}_{\text{factor}} = 1.0 \implies \mathbf{X}_{\text{sanitized}} = \mathbf{X}_{\text{batch}} \odot 1.0$$
+
 
 ---
 
-- **Corrupted Anomaly Ingress ($\Phi_{N} = 1.0$):** The integrity factor drops to $0.0$, forcing an immediate geometric collapse into a precise null matrix and neutralizing the anomaly prior to model ingestion.
-- **불량 데이터 인입 ($\Phi_{N} = 1.0$):** 무결성 인자가 정확히 $0.0$으로 강제 수축됩니다. 입력 데이터 전체를 물리적인 제로(0.0) 상태로 기하학적 소멸(Geometric Collapse) 시켜 신경망에 인입되기 전 아노말리를 원천 무력화합니다.
+- **Corrupted Anomaly Ingress ($\Phi_{N} = 1.0$):** The final integrity factor drops to $0.0$, forcing an immediate geometric collapse into a precise null matrix and neutralizing the anomaly prior to model ingestion.
 
-$$\mathbf{I}_{factor} = 0.0 \implies \mathbf{X}_{sanitized} = \mathbf{X}_{batch} \times 0.0$$
+- **불량 데이터 인입 ($\Phi_{N} = 1.0$):** 최종 무결성 인자가 정확히 $0.0$으로 강제 수축됩니다. 입력 데이터 전체를 물리적인 제로($0.0$) 상태로 기하학적 소멸(Geometric Collapse) 시켜 신경망에 인입되기 전 아노말리를 원천 무력화합니다.
+
+$$\mathbf{I}_{\text{factor}} = 0.0 \implies \mathbf{X}_{\text{sanitized}} = \mathbf{X}_{\text{batch}} \odot 0.0$$
 
 
 ---

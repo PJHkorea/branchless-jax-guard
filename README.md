@@ -127,17 +127,24 @@ $$\mathbf{S}_{k} = \mathbf{S}_{k-1} + \Phi_{k} \times \left( \mathbf{W} \cdot \m
 
 ### 2. The Zero-Squelch Operator
 
-- If the micro-kernel exhausts all $N_{max}$ iterations and the terminal survival flag remains active ($\Phi_{N} = 1.0$), it indicates that the input batch contains a numerical singularity (infinite vibration) that would otherwise collapse the downstream AdamW optimizer via `NaN` propagation.
-- 만약 마이크로 커널이 32회의 최대 루프($N_{max}$)를 모두 소모했음에도 최종 생존 플래그가 여전히 활성화($\Phi_{N} = 1.0$)되어 있다면, 이는 입력 배치 내에 후속 AdamW 옵티마이저를 `NaN` 폭발로 붕괴시킬 수 있는 수치적 싱큘래리티(무한 진동/발산 변이)가 포함되어 있음을 의미합니다.
+- If the micro-kernel exhausts all $N_{max}$ iterations and any element within the terminal active flag matrix remains active ($\Phi_{N} = 1.0$), it indicates that the input batch contains a numerical singularity (infinite vibration) that would otherwise collapse the downstream AdamW optimizer via `NaN` propagation.
+- 만약 마이크로 커널이 최대 루프($N_{max}$)를 모두 소모했음에도 최종 활성 플래그 행렬(Active Flag Matrix) 내에 단 하나의 원소라도 미수렴 상태($1.0$)로 잔존해 있다면, 이는 입력 배치 내에 후속 AdamW 옵티마이저를 `NaN` 폭발로 붕괴시킬 수 있는 수치적 싱큘래리티(무한 진동 및 발산 변이)가 포함되어 있음을 의미합니다.
 
 
-- Instead of throwing a runtime exception, the kernel applies the **Zero-Squelch Operator**:
-- 가속기 파이프라인은 런타임 예외(Exception)를 던져 전체 시스템을 중단시키는 대신, 대수적인 **원천 증발 연산자(Zero-Squelch Operator)**를 즉각 적용합니다:
 
+- Instead of throwing a runtime exception and halting the entire pipeline, the kernel applies the algebraic **Zero-Squelch Operator** immediately outside the sequential loop context:
+- 가속기 파이프라인은 런타임 예외(Exception)를 던져 대규모 학습 시스템 전체를 중단시키는 대신, 순차 루프 파이프라인 컨텍스트 외부에서 대수적인 **원천 증발 연산자(Zero-Squelch Operator)**를 즉각 실행합니다:
 
-$$\mathbf{I}_{factor} = 1.0 - \Phi_{N}$$
+$$\mathbf{I}_{factor} = 1.0 - \text{Reduction}(\mathbf{\Phi}_{N})$$
 
 $$\mathbf{X}_{sanitized} = \mathbf{X}_{batch} \times \mathbf{I}_{factor}$$
+
+- **[EN]** In the production kernel, the integrity factor is explicitly downcast to match the original precision of the input matrix, fully eliminating implicit runtime casting overheads.
+- **[KR]** 프로덕션 커널 내에서 무결성 인자는 원본 입력 행렬의 데이터 타입 정밀도로 명시적 다운캐스팅되어, 하드웨어 단의 묵시적 형변환 오버헤드를 원천 차단합니다.
+
+$$\mathbf{I}_{\text{factor}} \in \mathbb{R}^{B \times 1} \quad \text{downcast to} \quad \text{dtype}(\mathbf{X}_{\text{batch}})$$
+
+
 
 - **Normal Data Ingress ($\Phi_{N} = 0.0$):** The integrity factor maps to $1.0$, guaranteeing undamaged, bit-exact forward propagation.
 - **정상 데이터 인입 ($\Phi_{N} = 0.0$):** 무결성 인자가 $1.0$으로 사상되어, 원본 데이터의 훼손 없는 비트 단위 정밀도(Bit-exact) 그대로 순전파(Forward propagation)를 보장합니다.

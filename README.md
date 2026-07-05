@@ -1,32 +1,40 @@
 # branchless-jax-guard
 
-High-performance, compiler-native data pipeline verification gate engineered in JAX/XLA. Eradicates dynamic loop overheads and runtime `ConcretizationTypeError` anomalies via compile-time bounded loop unrolling and strict branchless algebraic masking.
+---
 
-### [KR] 아키텍처 개요
-본 커널은 JAX/XLA 환경에서 초고속 온-디바이스(On-Device) 데이터 파이프라인 무결성을 검증하기 위해 설계된 정밀 방패 커널입니다. 가속기 아키텍처에서 치명적인 동적 루프 오버헤드와 JAX 추적기(Tracer)의 `ConcretizationTypeError` 난제를 완전히 박멸하기 위해, 컴파일 타임에 상한선이 고정된 루프 언롤링(Bounded Loop Unrolling) 기법과 분기문 없는 순수 대수 마스킹(Branchless Algebraic Masking) 설계 사상을 엄격하게 준수합니다.
+- When an upstream failure causes a massive influx of corrupted data, this kernel completely avoids throwing a runtime error or crashing the system. Instead, it safely turns the bad data into 0.0 to protect the model weights, while immediately offloading fully quantified metric signals to your dashboard or logging system so you can catch the spike in the corruption rate instantly.
+
+- 만약 시스템에 문제가 생겨 불량 데이터가 쏟아져 들어오면, 이 커널은 시스템을 강제로 멈추는(Raise Error/Crash) 방식 대신, 데이터는 안전하게 0.0 처리해서 모델을 보호하되, 대시보드나 로그 시스템에는 불량률 증가 신호를 즉각 인지할 수 있도록 완벽하게 수치화된 메트릭 신호를 던져주는 기능을 수행합니다.
+  
+---
+
+- A high-performance, compiler-native data pipeline verification gate engineered in JAX/XLA. It resolves dynamic loop overheads and runtime ConcretizationTypeError anomalies by leveraging compile-time bounded loop unrolling and branchless algebraic masking.
+
+- 본 커널은 JAX/XLA 환경에서 초고속 온-디바이스(On-Device) 데이터 파이프라인 무결성을 검증하기 위해 설계된 커널입니다. 가속기 아키텍처에서 치명적인 동적 루프 오버헤드와 JAX 추적기(Tracer)의 ConcretizationTypeError 난제를 해소하기 위해, 컴파일 타임에 상한선이 고정된 루프 언롤링(Bounded Loop Unrolling) 기법과 분기문 없는 순수 대수 마스킹(Branchless Algebraic Masking) 설계 사상을 사용했습니다.
 
 ---
 
-## The High-Performance Paradigm
+### The High-Performance Paradigm
 
-In large-scale distributed training infrastructures (e.g., LLM foundation runs), the inclusion of dynamic loops (`while/break`) or Python-level conditional branches (`if/else`) to inspect incoming data streams poses a severe threat to hardware acceleration. These algorithmic control flows trigger **Graph Fragmentation** and severe **Host-Device Synchronization Bottlenecks (GPU/TPU Stall)**, shattering the compile-time optimization guarantees of the XLA compiler.
+- In large-scale distributed training infrastructures (e.g., LLM foundation runs), implementing dynamic loops (while/break) or Python-level conditional branches (if/else) to inspect incoming data streams limits the efficiency of hardware acceleration. These algorithmic control flows trigger Graph Fragmentation and host-device synchronization bottlenecks (GPU/TPU Stall), degrading the compile-time optimization guarantees of the XLA compiler.
 
-`branchless-jax-guard` serves as an ultra-fast, non-blocking data firewall placed at the absolute front-end of the training data pipeline. It evaluates numerical stability, scan convergence speed, and latent space structural anomalies using an inline, purely mathematical approach—achieving **0% Graph Breaks** and maintaining continuous accelerator saturation.
+- branchless-jax-guard serves as a high-speed, non-blocking data verification layer placed at the front-end of the training data pipeline. It evaluates numerical stability, scan convergence speed, and latent space structural anomalies using an inline, mathematical approach—eliminating Graph Breaks and maintaining continuous accelerator saturation.
 
-### [KR] 고성능 하드웨어 패러다임 해설
-초거대 언어 모델(LLM) 파운더리 학습과 같은 초대형 분산 인프라 환경에서, 유입되는 데이터 스트림을 검사하기 위해 동적 루프(`while`/`break`)나 파이썬 레벨의 조건부 분기문(`if`/`else`)을 결합하는 것은 하드웨어 가속기(GPU/TPU) 가동률에 치명적인 타격을 입힙니다. 이러한 제어 흐름 분기는 XLA 컴파일러의 전산 그래프 파편화(Graph Fragmentation)를 유발하고, 호스트와 디바이스 간의 동기화 병목을 일으켜 연산 코어가 정지(Stall)하는 원인이 됩니다.
+### 고성능 하드웨어 패러다임 해설
 
-`branchless-jax-guard`는 데이터 파이프라인 최전선에 전임 배치되는 논블로킹(Non-blocking) 초고속 데이터 방화벽입니다. 수치해석적 안정성, 루프 수렴 속도, 레이턴트 공간의 구조적 변이 유무를 오직 인라인 행렬 수식만으로 판정하여, 그래프 단절(Graph Breaks)을 0%로 통제하고 가속기 가동률을 100% 한계치로 유지합니다.
+- 초거대 언어 모델(LLM) 학습과 같은 대규모 분산 인프라 환경에서, 유입되는 데이터 스트림을 검사하기 위해 동적 루프(while/break)나 파이썬 레벨의 조건부 분기문(if/else)을 도입하는 것은 하드웨어 가속기 가동률 저하의 주요 원인이 됩니다. 이러한 제어 제어 흐름 분기는 XLA 컴파일러의 그래프 파편화(Graph Fragmentation)를 유발하고, 호스트와 디바이스 간의 동기화 병목을 일으켜 연산 코어의 지연(Stall)을 초래합니다.
+
+- branchless-jax-guard는 데이터 파이프라인 최전선에 배치되는 논블로킹(Non-blocking) 데이터 무결성 커널입니다. 수치해석적 안정성, 루프 수렴 속도, 레이턴트 공간의 구조적 이상 유무를 인라인 수식 연산만으로 판정하여, 그래프 단절(Graph Breaks) 없이 가속기 가동률을 최적의 상태로 유지합니다.
 
 
 ---
 
 ## Infrastructure Topology
 
-`branchless-jax-guard` acts as the definitive, autograd-isolated intake shield within the PJHkorea Zero-Branching paradigm. The entire infrastructure eliminates traditional imperative control loops, processing inputs as a continuous, unified data-flow continuum:
+`branchless-jax-guard` acts as an autograd-isolated data verification layer at the intake stage of the PJHkorea Zero-Branching architecture. The entire pipeline eliminates traditional imperative control loops, processing inputs as a continuous, unified data-flow continuum aligned directly at the hardware register level.
 
-### [KR] 인프라 토폴로지 및 흐름도 해설
-`branchless-jax-guard`는 PJHkorea Zero-Branching 패러다임 시스템 군의 최전방에서 작동하는 오토그레드(Autograd) 절연형 데이터 흡입 방패입니다. 전체 인프라는 기존의 명령형 제어 루프를 완전히 배제하며, 유입되는 모든 데이터 인풋 신호를 끊어짐이 없는 단일 데이터 플로우 연속체(Data-flow Continuum) 상태로 하드웨어 레지스터 단에 밀어 넣습니다.
+### 인프라 토폴로지 및 흐름도 해설
+`branchless-jax-guard`는 PJHkorea Zero-Branching 아키텍처의 입력 단계에서 작동하는 역전파 절연형(Autograd-isolated) 데이터 검증 레이어입니다. 전체 파이프라인은 기존의 명령형 제어 루프를 배제하고, 유입되는 모든 입력 데이터를 단일 데이터 플로우 연속체(Data-flow Continuum) 형태로 하드웨어 레지스터 단에 정렬하여 처리합니다.
 
 ```mermaid
 graph TD

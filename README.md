@@ -140,21 +140,14 @@ $$\mathbf{S}_{k} = \mathbf{S}_{k-1} + \Phi_{k} \odot \left( \mathbf{W} \cdot \ma
 ### 2. The Zero-Squelch Operator
 
 - If the terminal active flag remains unresolved, the kernel applies the multi-dimensional algebraic **Zero-Squelch Operator** via dimensional reduction and automatic algebraic broadcasting ($\odot$), avoiding explicit control loops.
+- Instead of throwing a runtime exception and halting the entire pipeline, the kernel applies the multi-dimensional algebraic **Zero-Squelch Operator** immediately outside the sequential loop context, avoiding explicit control loops.
 
 - 마이크로 커널의 최대 루프 소모 후 최종 활성 플래그가 잔존할 경우, 제어 루프 없이 차원 축소 연산 및 자동 대수적 브로드캐스팅 아다마르 곱($\odot$)을 결합한 **원천 증발 연산자(Zero-Squelch Operator)**를 실행합니다
 
-$$\mathbf{I}_{factor} = 1.0 - \max_{\text{axis}=-1}(\mathbf{\Phi}_{N})$$
-$$\mathbf{X}_{sanitized} = \mathbf{X}_{batch} \odot \mathbf{I}_{factor}$$
-
----
-
-- Instead of throwing a runtime exception and halting the entire pipeline, the kernel applies the multi-dimensional algebraic **Zero-Squelch Operator** immediately outside the sequential loop context, avoiding explicit control loops.
-
 - 가속기 파이프라인은 런타임 예외(Exception)를 던져 대규모 학습 시스템 전체를 중단시키는 대신, 제어 루프 없이 차원 축소 연산 및 브로드캐스팅을 활용한 **원천 증발 연산자(Zero-Squelch Operator)**를 순차 루프 파이프라인 컨텍스트 외부에서 즉각 실행합니다.
 
-$$\mathbf{I}_{\text{factor}} = 1.0 - \max_{\text{axis}=-1}(\mathbf{\Phi}_{N})$$
-$$\mathbf{X}_{\text{sanitized}} = \mathbf{X}_{\text{batch}} \odot \mathbf{I}_{\text{factor}}$$
-
+$$\mathbf{I}_{factor} = 1.0 - \max_{\text{axis}=-1}(\mathbf{\Phi}_{N})$$
+$$\mathbf{X}_{sanitized} = \mathbf{X}_{batch} \odot \mathbf{I}_{factor}$$
 
 ---
 

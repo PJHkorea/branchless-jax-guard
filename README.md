@@ -53,8 +53,9 @@ graph TD
         F & G --> H[jax.lax.stop_gradient Telemetry Offloading]
     end
 
-    %% 런타임 가속 컴파일 영역으로 진입
+    %% 런타임 가속 컴파일 영역으로 진입 (0% Graph Breaks)
     H -->|0% Graph Breaks / Static View Ingestion| RuntimeEngine[XLA COMPILATION & AUTOGRAD RUNTIME]
+    H -.->|Reflexive Non-blocking Address-Space Feeding| M
 
     %% 2, 3단계 백엔드 방패 분기 (PyTorch / CUDA, GPLv3)
     RuntimeEngine -->|Autograd Chain Rule Protection| Shield2
@@ -69,8 +70,8 @@ graph TD
 
     subgraph Shield3 [3. value-system-kernel V2 :: GNU GPLv3]
         direction TB
-        M[Direct embedding/danger_vectors_ptr Binding] --> N[Unary Minus Sign Extension Circuit]
-        N --> O[Branchless Bitwise Masking MUX]
+        M[Direct Address-Line danger_vectors_ptr Binding] --> N[Unary Minus Sign Extension Circuit]
+        N --> O[Branchless Address Scattering MUX]
         O --> P[Coalesced & Scattered Store & FMA Circuit]
     end
 
@@ -80,6 +81,7 @@ graph TD
     style RuntimeEngine fill:#2d1b1b,stroke:#ef4444,stroke-width:2px,color:#fff
     style Shield2 fill:#1e1b29,stroke:#8b5cf6,stroke-width:2px,color:#fff
     style Shield3 fill:#112417,stroke:#10b981,stroke-width:2px,color:#fff
+
 
 ```
 

@@ -69,9 +69,9 @@ graph TD
 
     subgraph Shield3 [3. value-system-kernel V2 :: GNU GPLv3]
         direction TB
-        M[Direct embedding/danger_vectors_ptr Binding] --> N[Two's Complement Underflow Bit Trick]
+        M[Direct embedding/danger_vectors_ptr Binding] --> N[Unary Minus Sign Extension Circuit]
         N --> O[Branchless Bitwise Masking MUX]
-        O --> P[Atomic Coalesced Store & FMA Cushioning]
+        O --> P[Coalesced & Scattered Store & FMA Circuit]
     end
 
     %% 스타일 가이드 정의 (하드웨어 친화적 톤)
@@ -80,6 +80,7 @@ graph TD
     style RuntimeEngine fill:#2d1b1b,stroke:#ef4444,stroke-width:2px,color:#fff
     style Shield2 fill:#1e1b29,stroke:#8b5cf6,stroke-width:2px,color:#fff
     style Shield3 fill:#112417,stroke:#10b981,stroke-width:2px,color:#fff
+
 ```
 
 
